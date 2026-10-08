@@ -1,0 +1,53 @@
+{
+  "vehicles": [
+    {
+      "id": "open_truck",
+      "name": {
+        "en": "Open Truck",
+        "ta": "திறந்த லாரி",
+        "hi": "खुला ट्रक"
+      },
+      "temp_factor": 1.0,
+      "default_capacity_kg": 3000,
+      "fuel_efficiency_kmpl": 5.5,
+      "description": {
+        "en": "Standard ambient airflow, highest sun exposure and spoilage rate",
+        "ta": "இயல்பான காற்று ஓட்டம், அதிக சூரிய வெப்பம் மற்றும் அழுகல் வாய்ப்பு",
+        "hi": "सामान्य हवा, अधिक धूप और खराब होने का उच्च जोखिम"
+      }
+    },
+    {
+      "id": "closed_truck",
+      "name": {
+        "en": "Closed Container Truck",
+        "ta": "மூடிய கொள்கலன் லாரி",
+        "hi": "बंद कंटेनर ट्रक"
+      },
+      "temp_factor": 0.7,
+      "default_capacity_kg": 6000,
+      "fuel_efficiency_kmpl": 4.8,
+      "description": {
+        "en": "Covered cargo, protects against direct sunlight and rain",
+        "ta": "மூடிய சரக்கு அறை, நேரடி வெயில் மற்றும் மழையிலிருந்து பாதுகாப்பு",
+        "hi": "ढका हुआ मालवाहक, सीधी धूप और बारिश से बचाव"
+      }
+    },
+    {
+      "id": "refrigerated_truck",
+      "name": {
+        "en": "Refrigerated Truck (Cold Chain)",
+        "ta": "குளிரூட்டப்பட்ட லாரி",
+        "hi": "शीतलन (रेफ्रिजरेटेड) ट्रक"
+      },
+      "temp_factor": 0.3,
+      "default_capacity_kg": 6000,
+      "fuel_efficiency_kmpl": 3.8,
+      "description": {
+        "en": "Active temperature control, slows down perishable spoilage by 70%",
+        "ta": "செயல்திறன் கொண்ட குளிர்சாதனம், அழுகல் வேகத்தை 70% வரை குறைக்கிறது",
+        "hi": "सक्रिय तापमान नियंत्रण, खराब होने की गति को 70% तक धीमा करता है"
+      }
+    }
+  ],
+  "capacity_presets": [1000, 3000, 6000, 10000]
+}

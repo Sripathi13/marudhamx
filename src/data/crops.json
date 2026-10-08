@@ -1,0 +1,123 @@
+{
+  "crops": [
+    {
+      "id": "tomato",
+      "name": {
+        "en": "Tomato",
+        "ta": "தக்காளி",
+        "hi": "टमाटर"
+      },
+      "category": "highly_perishable",
+      "base_spoilage_rate": 0.045,
+      "default_price_per_kg": 32,
+      "weights": {
+        "time": 0.50,
+        "spoilage": 0.30,
+        "cost": 0.15,
+        "traffic": 0.05
+      }
+    },
+    {
+      "id": "leafy_vegetables",
+      "name": {
+        "en": "Leafy Vegetables (Spinach / Greens)",
+        "ta": "கீரை வகைகள்",
+        "hi": "हरी पत्तेदार सब्जियां"
+      },
+      "category": "highly_perishable",
+      "base_spoilage_rate": 0.065,
+      "default_price_per_kg": 40,
+      "weights": {
+        "time": 0.52,
+        "spoilage": 0.33,
+        "cost": 0.10,
+        "traffic": 0.05
+      }
+    },
+    {
+      "id": "banana",
+      "name": {
+        "en": "Banana (Nendran / Robusta)",
+        "ta": "வாழைப்பழம்",
+        "hi": "केला"
+      },
+      "category": "medium",
+      "base_spoilage_rate": 0.025,
+      "default_price_per_kg": 35,
+      "weights": {
+        "time": 0.35,
+        "spoilage": 0.25,
+        "cost": 0.25,
+        "traffic": 0.15
+      }
+    },
+    {
+      "id": "potato",
+      "name": {
+        "en": "Potato",
+        "ta": "உருளைக்கிழங்கு",
+        "hi": "आलू"
+      },
+      "category": "medium",
+      "base_spoilage_rate": 0.012,
+      "default_price_per_kg": 28,
+      "weights": {
+        "time": 0.30,
+        "spoilage": 0.20,
+        "cost": 0.35,
+        "traffic": 0.15
+      }
+    },
+    {
+      "id": "onion",
+      "name": {
+        "en": "Small Onion (Shallots / Bellary)",
+        "ta": "சின்ன வெங்காயம்",
+        "hi": "प्याज"
+      },
+      "category": "medium",
+      "base_spoilage_rate": 0.018,
+      "default_price_per_kg": 45,
+      "weights": {
+        "time": 0.32,
+        "spoilage": 0.22,
+        "cost": 0.32,
+        "traffic": 0.14
+      }
+    },
+    {
+      "id": "maize",
+      "name": {
+        "en": "Maize (Corn)",
+        "ta": "மக்காச்சோளம்",
+        "hi": "मक्का"
+      },
+      "category": "low",
+      "base_spoilage_rate": 0.006,
+      "default_price_per_kg": 24,
+      "weights": {
+        "time": 0.20,
+        "spoilage": 0.10,
+        "cost": 0.50,
+        "traffic": 0.20
+      }
+    },
+    {
+      "id": "rice",
+      "name": {
+        "en": "Paddy / Rice",
+        "ta": "நெல் / அரிசி",
+        "hi": "धान / चावल"
+      },
+      "category": "low",
+      "base_spoilage_rate": 0.002,
+      "default_price_per_kg": 38,
+      "weights": {
+        "time": 0.15,
+        "spoilage": 0.05,
+        "cost": 0.60,
+        "traffic": 0.20
+      }
+    }
+  ]
+}

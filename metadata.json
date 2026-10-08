@@ -1,0 +1,6 @@
+{
+  "name": "MarudhamX",
+  "description": "AI-Based Perishable Produce Transportation Optimizer for intelligent agricultural logistics and spoilage-aware routing",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

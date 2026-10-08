@@ -1,0 +1,81 @@
+{
+  "markets": [
+    {
+      "id": "cbe_central",
+      "name": {
+        "en": "Coimbatore Tyagikumaran Market",
+        "ta": "கோயம்புத்தூர் தியாகி குமரன் சந்தை",
+        "hi": "कोयंबटूर त्यागिकुमारन मंडी"
+      },
+      "lat": 10.9982,
+      "lng": 76.9632,
+      "district": "Coimbatore"
+    },
+    {
+      "id": "pollachi",
+      "name": {
+        "en": "Pollachi Gandhi Market",
+        "ta": "பொள்ளாச்சி காந்தி சந்தை",
+        "hi": "पोलाची गांधी मंडी"
+      },
+      "lat": 10.6609,
+      "lng": 77.0048,
+      "district": "Coimbatore"
+    },
+    {
+      "id": "tiruppur",
+      "name": {
+        "en": "Tiruppur Thennampalayam Market",
+        "ta": "திருப்பூர் தென்னம்பாளையம் சந்தை",
+        "hi": "तिरुपुर थेन्नमपलायम मंडी"
+      },
+      "lat": 11.1085,
+      "lng": 77.3411,
+      "district": "Tiruppur"
+    },
+    {
+      "id": "salem",
+      "name": {
+        "en": "Salem Shevapet Agro Market",
+        "ta": "சேலம் செவ்வாய்ப்பேட்டை சந்தை",
+        "hi": "सेलम शेवापेट कृषि मंडी"
+      },
+      "lat": 11.6538,
+      "lng": 78.1460,
+      "district": "Salem"
+    },
+    {
+      "id": "erode",
+      "name": {
+        "en": "Erode Nethaji Agro Market",
+        "ta": "ஈரோடு நேதாஜி காய்கறி சந்தை",
+        "hi": "इरोड नेताजी सब्जी मंडी"
+      },
+      "lat": 11.3410,
+      "lng": 77.7172,
+      "district": "Erode"
+    },
+    {
+      "id": "mettupalayam",
+      "name": {
+        "en": "Mettupalayam Agro Market",
+        "ta": "மேட்டுப்பாளையம் வேளாண் சந்தை",
+        "hi": "मेट्टुपालयम कृषि मंडी"
+      },
+      "lat": 11.3005,
+      "lng": 76.9482,
+      "district": "Coimbatore"
+    },
+    {
+      "id": "chennai_koyambedu",
+      "name": {
+        "en": "Chennai Koyambedu Wholesale Market",
+        "ta": "சென்னை கோயம்பேடு மொத்த சந்தை",
+        "hi": "चेन्नई कोयम्बेडु थोक मंडी"
+      },
+      "lat": 13.0694,
+      "lng": 80.1948,
+      "district": "Chennai"
+    }
+  ]
+}
