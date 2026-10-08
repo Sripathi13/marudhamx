@@ -169,3 +169,68 @@ export interface PlanRequest {
   vehicle_type: string;
   departure_time: string;
 }
+
+export interface FarmPickupOrder {
+  id: string;
+  name: LocalizedString;
+  district: string;
+  lat: number;
+  lng: number;
+  crop_id: string;
+  crop_name: LocalizedString;
+  harvest_kg: number;
+  wholesale_price_inr: number;
+  base_spoilage_rate: number;
+}
+
+export interface VrpTruckStop {
+  stop_index: number;
+  type: 'pickup' | 'delivery';
+  location_name: string;
+  lat: number;
+  lng: number;
+  load_picked_kg: number;
+  cumulative_load_kg: number;
+  arrival_time_min: number;
+  distance_from_prev_km: number;
+}
+
+export interface VrpTruckRoute {
+  truck_id: string;
+  truck_name: string;
+  vehicle_type: string;
+  capacity_kg: number;
+  total_load_kg: number;
+  utilization_percent: number;
+  total_distance_km: number;
+  total_duration_min: number;
+  transport_cost_inr: number;
+  expected_spoilage_loss_inr: number;
+  total_economic_cost_inr: number;
+  route_geometry: [number, number][];
+  color: string;
+  stops: VrpTruckStop[];
+}
+
+export interface VrpSolution {
+  id: string;
+  created_at: string;
+  total_harvest_kg: number;
+  total_trucks_used: number;
+  fleet_utilization_avg_percent: number;
+  destination: {
+    name: LocalizedString;
+    lat: number;
+    lng: number;
+  };
+  farms: FarmPickupOrder[];
+  trucks: VrpTruckRoute[];
+  comparison: {
+    direct_trips_cost_inr: number;
+    consolidated_cost_inr: number;
+    fuel_savings_inr: number;
+    spoilage_prevented_inr: number;
+    net_farmer_savings_inr: number;
+    empty_runs_eliminated: number;
+  };
+}

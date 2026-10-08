@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
-import { RouteCandidate } from '../types';
+import { RouteCandidate, RoadStretch } from '../types';
+import { formatDistance, formatDuration, formatSpeed } from '../utils/formatters';
 
 interface LeafletMapProps {
   origin: { lat: number; lng: number; name?: string };
@@ -9,6 +10,8 @@ interface LeafletMapProps {
   routes: RouteCandidate[];
   selectedRouteId: string;
   onSelectRoute?: (routeId: string) => void;
+  onSelectStretch?: (stretch: RoadStretch) => void;
+  selectedStretchId?: string | null;
   heightClass?: string;
 }
 
@@ -18,9 +21,13 @@ export default function LeafletMap({
   routes,
   selectedRouteId,
   onSelectRoute,
+  onSelectStretch,
+  selectedStretchId,
   heightClass = 'h-[480px]',
 }: LeafletMapProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = (i18n.language as 'en' | 'ta' | 'hi') || 'ta';
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersGroupRef = useRef<L.FeatureGroup | null>(null);
@@ -32,10 +39,9 @@ export default function LeafletMap({
     const map = L.map(mapContainerRef.current, {
       center: [origin.lat, origin.lng],
       zoom: 10,
-      attributionControl: false, // We'll add custom localized attribution below
+      attributionControl: false,
     });
 
-    // Custom attribution without English prefix
     L.control
       .attribution({
         prefix: false,
@@ -43,7 +49,6 @@ export default function LeafletMap({
       .addAttribution(t('map.layer_attribution'))
       .addTo(map);
 
-    // OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
     }).addTo(map);
@@ -82,7 +87,7 @@ export default function LeafletMap({
       popupAnchor: [0, -32],
     });
 
-    const originMarker = L.marker([origin.lat, origin.lng], { icon: originIcon })
+    L.marker([origin.lat, origin.lng], { icon: originIcon })
       .bindPopup(`<strong>${t('map.pickup_point')}</strong><br/>${origin.name || ''}`)
       .addTo(layerGroup);
 
@@ -112,78 +117,98 @@ export default function LeafletMap({
       const baseOpacity = isSelected ? 0.95 : 0.35;
       const baseWeight = isSelected ? 6 : 4;
 
-      // Check if segments are available
-      const segments = route.geometry_segments && route.geometry_segments.length > 0
-        ? route.geometry_segments
-        : [{ speed: 'UNKNOWN' as const, coords: route.geometry }];
+      if (isSelected && route.stretches && route.stretches.length > 0) {
+        // Draw individual road stretches with speed band colors
+        route.stretches.forEach((stretch) => {
+          const isStretchActive = selectedStretchId === stretch.id;
 
-      segments.forEach((seg) => {
-        let color = '#059669'; // Default Green (normal / estimated)
-        let dashArray: string | undefined = undefined;
+          let color = '#059669'; // High speed (>50 km/h)
+          if (stretch.speed_band === 'medium') color = '#d97706'; // 30-50 km/h
+          if (stretch.speed_band === 'low') color = '#dc2626'; // <30 km/h
 
-        if (seg.speed === 'SLOW') {
-          color = '#ea580c'; // Orange
-        } else if (seg.speed === 'TRAFFIC_JAM') {
-          color = '#dc2626'; // Red
-        } else if (seg.speed === 'NORMAL') {
-          color = '#16a34a'; // Green
-        } else if (seg.speed === 'UNKNOWN') {
-          // Mode B or no traffic data: emerald or dashed if unselected
-          color = isSelected ? '#059669' : '#64748b';
-          if (!isSelected) dashArray = '6, 6';
-        }
+          const poly = L.polyline(stretch.coords, {
+            color,
+            weight: isStretchActive ? 9 : baseWeight,
+            opacity: baseOpacity,
+            smoothFactor: 1,
+          });
 
-        const poly = L.polyline(seg.coords, {
-          color,
-          weight: baseWeight,
-          opacity: baseOpacity,
-          dashArray,
-          smoothFactor: 1,
+          poly.on('click', () => {
+            if (onSelectStretch) onSelectStretch(stretch);
+          });
+
+          const fromName = stretch.from_place[currentLang] || stretch.from_place.ta;
+          const toName = stretch.to_place[currentLang] || stretch.to_place.ta;
+
+          poly.bindTooltip(
+            `#${stretch.stretch_index}: ${fromName} → ${toName} | ${formatSpeed(stretch.recommended_speed_kmh)} (${formatDistance(stretch.length_km)})`,
+            { sticky: true }
+          );
+
+          poly.addTo(layerGroup);
         });
+      } else {
+        // Generic route rendering for non-selected routes or routes without stretches
+        const segments = route.geometry_segments && route.geometry_segments.length > 0
+          ? route.geometry_segments
+          : [{ speed: 'NORMAL' as const, coords: route.geometry }];
 
-        poly.on('click', () => {
-          if (onSelectRoute) onSelectRoute(route.id);
+        segments.forEach((seg) => {
+          let color = isSelected ? '#059669' : '#64748b';
+          if (seg.speed === 'SLOW') color = '#ea580c';
+          if (seg.speed === 'TRAFFIC_JAM') color = '#dc2626';
+
+          const poly = L.polyline(seg.coords, {
+            color,
+            weight: baseWeight,
+            opacity: baseOpacity,
+            dashArray: isSelected ? undefined : '6, 6',
+            smoothFactor: 1,
+          });
+
+          poly.on('click', () => {
+            if (onSelectRoute) onSelectRoute(route.id);
+          });
+
+          poly.bindTooltip(
+            `${route.id} (${route.name}): ${formatDistance(route.distance_km)} • ${formatDuration(route.duration_min)}`,
+            { sticky: true }
+          );
+
+          poly.addTo(layerGroup);
         });
-
-        poly.bindTooltip(
-          `${route.id} (${route.name}): ${route.distance_km} ${t('units.km')} • ${route.duration_min} ${t('units.min')}`,
-          { sticky: true }
-        );
-
-        poly.addTo(layerGroup);
-      });
+      }
     });
 
-    // Fit bounds smoothly with margin
     const bounds = layerGroup.getBounds();
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     }
-  }, [origin, destination, routes, selectedRouteId, t]);
+  }, [origin, destination, routes, selectedRouteId, selectedStretchId, currentLang, t]);
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
       <div ref={mapContainerRef} className={`w-full ${heightClass}`} />
 
-      {/* Traffic & Map Legend Overlay */}
-      <div className="absolute bottom-4 left-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl p-3 border border-slate-200/80 shadow-md text-xs pointer-events-auto">
-        <p className="font-semibold text-slate-800 mb-2">{t('map.legend_title')}</p>
-        <div className="space-y-1.5">
+      {/* Traffic & Speed Advisory Legend Overlay */}
+      <div className="absolute bottom-4 left-4 z-[1000] bg-white/95 backdrop-blur-sm rounded-xl p-3 border border-slate-200/80 shadow-md text-xs pointer-events-auto max-w-[210px]">
+        <p className="font-bold text-slate-900 mb-1.5">{t('map.legend_title')}</p>
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="w-4 h-1.5 bg-emerald-600 rounded-full inline-block"></span>
-            <span className="text-slate-700">{t('map.legend_normal')}</span>
+            <span className="w-3.5 h-2 bg-emerald-600 rounded-sm inline-block" />
+            <span className="text-slate-700">{t('map.legend_speed_high')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-4 h-1.5 bg-amber-600 rounded-full inline-block"></span>
-            <span className="text-slate-700">{t('map.legend_slow')}</span>
+            <span className="w-3.5 h-2 bg-amber-500 rounded-sm inline-block" />
+            <span className="text-slate-700">{t('map.legend_speed_medium')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-4 h-1.5 bg-rose-600 rounded-full inline-block"></span>
-            <span className="text-slate-700">{t('map.legend_heavy')}</span>
+            <span className="w-3.5 h-2 bg-rose-600 rounded-full inline-block" />
+            <span className="text-slate-700">{t('map.legend_speed_low')}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-1.5 border-b-2 border-dashed border-slate-500 inline-block"></span>
-            <span className="text-slate-600">{t('map.legend_unknown')}</span>
+          <div className="pt-1 border-t border-slate-100 flex items-center gap-2">
+            <span className="w-3.5 h-1 border-b-2 border-dashed border-slate-500 inline-block" />
+            <span className="text-slate-500 text-[11px]">{t('map.legend_unknown')}</span>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
   "native_name": "English",
   "app_name": "MarudhamX",
   "tagline": "AI-Based Perishable Produce Transportation Optimizer",
-  "meta_description": "AI-Based Perishable Produce Transportation Optimizer for intelligent agricultural logistics and spoilage-aware routing",
+  "meta_description": "AI-Based Perishable Produce Transportation Optimizer for intelligent agricultural logistics, speed advisories, and live turn-by-turn navigation",
   "nav": {
     "plan": "Plan Shipment",
     "history": "Shipment History",
@@ -11,20 +11,20 @@
   },
   "landing": {
     "headline": "AI-Powered Road Transport Optimization for Perishable Produce",
-    "subheadline": "Find the economically optimal route minimizing transit time, transport costs, and crop spoilage losses on real road networks.",
+    "subheadline": "Find the economically optimal route minimizing transit time, transport costs, and crop spoilage losses on real road networks with speed advisories and live navigation.",
     "cta_plan": "Plan a Shipment",
     "features": {
-      "routes_title": "Real Road Routing",
-      "routes_desc": "Computes multi-candidate routes on real road networks with live or estimated traffic data instead of straight-line approximations.",
+      "routes_title": "Real Road Routing & Speed Advisories",
+      "routes_desc": "Computes multi-candidate routes on real road networks with live or estimated traffic, recommended speed limits per corridor stretch, and off-route recalculation.",
       "trucks_title": "Automated Truck Allocation",
-      "trucks_desc": "Calculates fleet requirements and per-truck capacity utilization automatically based on harvest weight.",
+      "trucks_desc": "Calculates fleet requirements, per-truck capacity utilization, and printable load sheets automatically based on harvest weight.",
       "spoilage_title": "Spoilage & Economic Loss Model",
       "spoilage_desc": "Integrates crop-specific exponential decay models to balance transport costs against produce decay risk."
     }
   },
   "plan": {
     "title": "Shipment Planner",
-    "subtitle": "Configure shipment details to compute the best route and truck allocation.",
+    "subtitle": "Configure shipment details to compute the best route, speed advisories, and truck allocation.",
     "demo_button": "Try Demo: 5,000 kg Tomato (Pollachi to Coimbatore)",
     "section_produce": "Produce & Vehicle",
     "section_origin": "Origin (Farm / Harvest Point)",
@@ -50,11 +50,12 @@
     "destination_label": "Destination Market",
     "destination_select": "Select a market",
     "btn_optimize": "Optimize Route",
-    "btn_optimizing": "Computing Optimal Route...",
+    "btn_optimizing": "Computing Optimal Route & Speed Advisories...",
     "truck_summary_title": "Truck Allocation Summary",
     "truck_summary_formula": "{{needed}} trucks required for {{total}} {{unit}} with {{capacity}} {{unit}} capacity each.",
     "truck_item_full": "Truck {{number}}: {{load}} {{unit}} ({{utilization}}% full)",
-    "truck_item_partial": "Truck {{number}}: {{load}} {{unit}} ({{utilization}}% full - partial load)"
+    "truck_item_partial": "Truck {{number}}: {{load}} {{unit}} ({{utilization}}% full - partial load)",
+    "speed_advice_preview": "Speed Advisory: Plan {{city_speed}} {{unit_speed}} through city zones, {{highway_speed}} {{unit_speed}} on highway stretches."
   },
   "map_picker": {
     "title_origin": "Pick Farm / Origin Point",
@@ -70,11 +71,14 @@
   },
   "results": {
     "title": "Route Optimization Results",
-    "subtitle": "Calculated across real road networks considering transport expenses and spoilage risks.",
+    "subtitle": "Calculated across real road networks with speed advisories, transport expenses, and spoilage risks.",
     "truck_banner": "{{count}} trucks needed. {{details}}",
     "recommended_badge": "Recommended Route",
     "alternative_badge": "Alternative Route",
+    "btn_start_navigation": "Start Live Turn-by-Turn Navigation",
     "btn_open_google_maps": "Open Route in Google Maps",
+    "btn_print_load_sheet": "Print Truck Load Sheet",
+    "btn_share_sms": "Share Driver Summary",
     "why_title": "Why This Route?",
     "why_subtitle": "Relative contribution of factors influencing the recommendation score",
     "factor_time": "Travel Time",
@@ -90,10 +94,11 @@
     "col_spoilage_loss": "Expected Spoilage Loss",
     "col_total_cost": "Total Economic Cost",
     "col_score": "Score",
+    "col_confidence": "Confidence",
     "col_action": "Select",
     "estimated_badge": "Estimated",
     "live_badge": "Live Data",
-    "no_live_traffic_banner": "Live traffic data is currently unavailable. Travel duration is estimated using typical road speeds for the departure hour.",
+    "no_live_traffic_banner": "Live traffic data is currently unavailable. Travel duration and speed limits are calculated using typical highway profiles.",
     "steps_title": "Turn-by-Turn Navigation Steps",
     "steps_hide": "Hide Steps",
     "steps_show": "Show Turn-by-Turn Steps ({{count}} steps)",
@@ -105,14 +110,108 @@
     "assumption_base_rate": "Base Spoilage Rate: {{val}} / hour",
     "assumption_temp_factor": "Vehicle Temp Factor: {{val}}",
     "assumption_data_source": "Routing Source: {{val}}",
-    "disclaimer": "Note: Spoilage rates and traffic projections are mathematical models for decision support and demonstration."
+    "disclaimer": "Note: Spoilage rates and speed advisories are mathematical models for decision support and demonstration."
+  },
+  "speed_advisory": {
+    "title": "Road Stretch Speed Advisories",
+    "subtitle": "Recommended driving speeds for goods vehicles based on road classification, urban boundaries, and traffic",
+    "table_stretch": "Stretch",
+    "table_from": "From",
+    "table_to": "To",
+    "table_length": "Length",
+    "table_recommended_speed": "Recommended Speed",
+    "table_expected_time": "Expected Time",
+    "table_reason": "Advisory Basis",
+    "table_data_source": "Speed Limit Source",
+    "planner_advice": "Plan {{city_speed}} {{unit_speed}} through city zones, {{highway_speed}} {{unit_speed}} on highway stretches.",
+    "reason_urban_limit": "Urban boundary speed cap applied",
+    "reason_highway_flow": "Free-flow highway conditions",
+    "reason_congested_traffic": "Reduced due to traffic congestion",
+    "reason_default_goods_limit": "Goods vehicle statutory limit",
+    "reason_moderate_arterial": "Arterial road class profile",
+    "source_posted": "Posted road limit",
+    "source_truck_default": "Default goods vehicle limit",
+    "band_high": "Above 50 km/h",
+    "band_medium": "30 to 50 km/h",
+    "band_low": "Below 30 km/h",
+    "stretch_card_title": "Stretch Speed Advisory",
+    "stretch_card_speed": "Speed: {{speed}} {{unit}}",
+    "stretch_card_time": "Time: {{time}} {{unit}}",
+    "stretch_card_source": "Source: {{source}}",
+    "stretch_card_reason": "Reason: {{reason}}"
+  },
+  "navigation": {
+    "start_btn": "Start Live Navigation",
+    "stop_btn": "Exit Navigation",
+    "demo_btn": "Demo Drive Simulation",
+    "demo_stop_btn": "Stop Simulation",
+    "heading_up": "Heading-Up",
+    "north_up": "North-Up",
+    "mute": "Mute Voice",
+    "unmute": "Unmute Voice",
+    "voice_speaking": "Voice Guidance Enabled",
+    "wake_lock_on": "Screen Keep-Awake Active",
+    "wake_lock_off": "Screen Keep-Awake Off",
+    "recalculating": "Route recalculating...",
+    "route_recalculated": "Route recalculated successfully.",
+    "off_route_alert": "You are off the planned route. Recalculating route...",
+    "arrived_title": "You Have Arrived!",
+    "arrived_desc": "Destination reached. Trip logged in history.",
+    "next_maneuver": "Next Manoeuvre",
+    "distance_in_m": "in {{distance}} m",
+    "distance_in_km": "in {{distance}} {{unit}}",
+    "remaining": "Remaining",
+    "eta": "ETA",
+    "current_stretch_speed": "Advisory Speed",
+    "open_in_gmaps": "Open in Google Maps App",
+    "maneuvers": {
+      "straight": "Continue straight on {{road}}",
+      "turn_right": "Turn right onto {{road}}",
+      "turn_left": "Turn left onto {{road}}",
+      "slight_right": "Keep right onto {{road}}",
+      "slight_left": "Keep left onto {{road}}",
+      "u_turn": "Make a U-turn on {{road}}",
+      "roundabout": "Enter roundabout and take exit onto {{road}}",
+      "destination": "Arrive at destination: {{road}}"
+    }
+  },
+  "templates": {
+    "title": "Quick Shipment Templates",
+    "weekly_tomato": "Weekly Tomato Run (Pollachi to Coimbatore Tyagikumaran Market)",
+    "use_template": "Apply Template"
+  },
+  "simple_mode": {
+    "toggle_label": "Simple Mode",
+    "voice_input": "Voice Input",
+    "listening": "Listening...",
+    "speak_prompt": "Speak crop name and weight (e.g. 5000 kg Tomato)",
+    "voice_not_supported": "Speech recognition is not supported in this browser."
+  },
+  "load_sheet": {
+    "title": "Truck Load Sheet & Manifest",
+    "print_btn": "Print Load Sheet",
+    "truck_no": "Truck Number",
+    "driver_copy": "Driver Copy",
+    "stops": "Corridor Stops",
+    "cargo": "Produce",
+    "weight": "Allocated Weight",
+    "max_speed": "En-route Speed Cap"
+  },
+  "share": {
+    "btn": "Share Trip Summary",
+    "copied": "Trip summary copied to clipboard for SMS/WhatsApp!"
+  },
+  "confidence": {
+    "high": "High Confidence (Live Traffic)",
+    "medium": "Medium Confidence (OSRM Road Network)",
+    "low": "Estimated Baseline"
   },
   "tradeoff": {
     "explanation": "Route {{recommended}} costs {{extra_cost}} more than the cheapest route, but saves {{loss_savings}} in spoilage loss and arrives {{time_savings}} earlier."
   },
   "history": {
     "title": "Shipment History",
-    "subtitle": "Review previous shipment optimizations and download CSV records.",
+    "subtitle": "Review previous shipment optimizations, navigation logs, and download CSV records.",
     "export_csv": "Export CSV",
     "filter_all": "All Crops",
     "col_date": "Date & Time",
@@ -146,17 +245,22 @@
     "traffic_source_label": "Traffic Data Engine",
     "traffic_source_live": "Live Traffic Enabled (Google Routes API)",
     "traffic_source_estimated": "Typical Traffic Estimates (OSRM Highway Network)",
+    "voice_guidance_label": "Voice Navigation Guidance",
+    "screen_awake_label": "Keep Screen Awake during Navigation",
     "btn_save": "Save Settings",
     "btn_reset": "Reset to Defaults",
     "saved_toast": "Settings successfully saved.",
     "reset_toast": "Settings reset to defaults."
   },
   "map": {
-    "legend_title": "Traffic Legend",
+    "legend_title": "Traffic & Speed Legend",
     "legend_normal": "Normal Traffic",
     "legend_slow": "Slow Traffic",
     "legend_heavy": "Heavy Congestion",
     "legend_unknown": "No Traffic Data",
+    "legend_speed_high": "Speed > 50 km/h",
+    "legend_speed_medium": "Speed 30-50 km/h",
+    "legend_speed_low": "Speed < 30 km/h",
     "recommended_label": "Recommended Route ({{id}})",
     "alternative_label": "Alternative Route ({{id}})",
     "layer_attribution": "OpenStreetMap contributors | Leaflet",
@@ -173,7 +277,9 @@
     "currency": "₹",
     "per_litre": "₹/L",
     "per_kg": "₹/kg",
-    "kmpl": "km/L"
+    "kmpl": "km/L",
+    "kmh": "km/h",
+    "m": "m"
   },
   "traffic_profile": {
     "off_peak": "Off-peak",
@@ -195,6 +301,6 @@
   },
   "footer": {
     "tagline": "AI-Based Perishable Produce Transportation Optimizer",
-    "description": "Empowering farmers and agricultural logistics with spoilage-aware routing and economic optimization."
+    "description": "Empowering farmers and agricultural logistics with spoilage-aware routing, speed advisories, and live navigation."
   }
 }

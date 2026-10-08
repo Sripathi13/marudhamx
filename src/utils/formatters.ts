@@ -28,6 +28,17 @@ export const formatDistance = (km: number, unitSystem: 'km' | 'mi' = 'km'): stri
   return `${formatNumber(km, 1)} ${i18n.t('units.km')}`;
 };
 
+export const formatSpeed = (kmh: number): string => {
+  return `${formatNumber(kmh)} ${i18n.t('units.kmh')}`;
+};
+
+export const formatMeters = (meters: number): string => {
+  if (meters >= 1000) {
+    return `${formatNumber(meters / 1000, 1)} ${i18n.t('units.km')}`;
+  }
+  return `${formatNumber(meters)} ${i18n.t('units.m')}`;
+};
+
 export const formatDuration = (totalMinutes: number): string => {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;

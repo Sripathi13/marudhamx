@@ -3,21 +3,25 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import cropsData from './src/data/crops.json';
-import marketsData from './src/data/markets.json';
-import vehiclesData from './src/data/vehicles.json';
-import {
+import { createRequire } from 'module';
+import type {
   AppSettings,
   PlanResponse,
   RouteCandidate,
   TrafficSegment,
   TurnByTurnStep,
   TruckBreakdown,
-  TruckAllocation
-} from './src/types';
+  TruckAllocation,
+  Crop,
+  Vehicle
+} from './src/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const cropsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/crops.json'), 'utf-8'));
+const marketsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/markets.json'), 'utf-8'));
+const vehiclesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/vehicles.json'), 'utf-8'));
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -432,8 +436,8 @@ app.post('/api/shipments/plan', async (req, res) => {
     return res.status(400).json({ code: 'DESTINATION_REQUIRED' });
   }
 
-  const crop = cropsData.crops.find((c) => c.id === crop_id) || cropsData.crops[0];
-  const vehicle = vehiclesData.vehicles.find((v) => v.id === vehicle_type) || vehiclesData.vehicles[0];
+  const crop = (cropsData.crops as Crop[]).find((c) => c.id === crop_id) || (cropsData.crops[0] as Crop);
+  const vehicle = (vehiclesData.vehicles as Vehicle[]).find((v) => v.id === vehicle_type) || (vehiclesData.vehicles[0] as Vehicle);
 
   // 1. Truck Breakdown calculation
   const trucks_needed = Math.ceil(total_kg / truck_capacity_kg);
@@ -847,8 +851,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`MarudhamX server running on http://0.0.0.0:${PORT}`);
+  });
+
+  process.on('SIGTERM', () => {
+    server.close(() => process.exit(0));
+  });
+  process.on('SIGINT', () => {
+    server.close(() => process.exit(0));
   });
 }
 

@@ -1,6 +1,6 @@
 {
-  "name": "MarudhamX",
-  "description": "AI-Based Perishable Produce Transportation Optimizer for intelligent agricultural logistics and spoilage-aware routing",
+  "name": "MarudhamX - Perishable Produce Transport Planner",
+  "description": "MarudhamX routes perishable agricultural shipments along real road networks, calculates exact truck allocations, and minimizes transport expenses and spoilage loss.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -4,7 +4,9 @@ import {
   Vehicle,
   AppSettings,
   PlanRequest,
-  PlanResponse
+  PlanResponse,
+  VrpSolution,
+  FarmPickupOrder
 } from '../types';
 
 export const api = {
@@ -76,5 +78,21 @@ export const api = {
 
   getExportCsvUrl(id: string, lang: string): string {
     return `/api/shipments/${id}/export.csv?lang=${lang}`;
+  },
+
+  async getVrpPreset(): Promise<{ farms: FarmPickupOrder[]; destination: { name: { en: string; ta: string; hi: string }; lat: number; lng: number } }> {
+    const res = await fetch('/api/vrp/preset');
+    if (!res.ok) throw new Error('FETCH_VRP_PRESET_FAILED');
+    return res.json();
+  },
+
+  async solveVrp(farms?: FarmPickupOrder[]): Promise<VrpSolution> {
+    const res = await fetch('/api/vrp/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ farms }),
+    });
+    if (!res.ok) throw new Error('SOLVE_VRP_FAILED');
+    return res.json();
   }
 };

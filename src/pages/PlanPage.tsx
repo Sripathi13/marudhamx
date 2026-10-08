@@ -5,13 +5,16 @@ import {
   MapPin,
   Navigation,
   Truck,
-  Calendar,
   Sparkles,
   ArrowRight,
   AlertCircle,
   Clock,
-  Layers,
-  Scale
+  Scale,
+  Mic,
+  MicOff,
+  Gauge,
+  BookmarkCheck,
+  Check
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Crop, Market, Vehicle, PlanRequest } from '../types';
@@ -63,6 +66,10 @@ export default function PlanPage() {
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Voice Input State
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   // Fetch meta options
   useEffect(() => {
@@ -140,7 +147,7 @@ export default function PlanPage() {
     );
   };
 
-  // Demo scenario quick loader
+  // Demo / Template Scenario Loaders
   const handleLoadDemo = () => {
     setSelectedCropId('tomato');
     setTotalKg(5000);
@@ -154,6 +161,69 @@ export default function PlanPage() {
     setSelectedMarketId('cbe_central');
     setCustomDestination(null);
     setValidationError(null);
+  };
+
+  // Voice Input Handler (SpeechRecognition)
+  const handleToggleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceNotice(t('simple_mode.voice_not_supported'));
+      setTimeout(() => setVoiceNotice(null), 3000);
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      const currentLang = i18n.language || 'ta';
+      recognition.lang = currentLang === 'ta' ? 'ta-IN' : currentLang === 'hi' ? 'hi-IN' : 'en-IN';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      setIsListening(true);
+      setVoiceNotice(t('simple_mode.listening'));
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        setIsListening(false);
+        setVoiceNotice(transcript);
+        setTimeout(() => setVoiceNotice(null), 4000);
+
+        // Parse numbers
+        const numbersFound = transcript.match(/\d+/g);
+        if (numbersFound && numbersFound.length > 0) {
+          const qty = parseInt(numbersFound[0], 10);
+          if (qty > 0) setTotalKg(qty);
+        }
+
+        // Match crop
+        crops.forEach((c) => {
+          const enName = c.name.en.toLowerCase();
+          const taName = c.name.ta.toLowerCase();
+          const hiName = c.name.hi.toLowerCase();
+          if (transcript.includes(enName) || transcript.includes(taName) || transcript.includes(hiName)) {
+            setSelectedCropId(c.id);
+          }
+        });
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        setVoiceNotice(null);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
   };
 
   // Submit Handler
@@ -223,15 +293,40 @@ export default function PlanPage() {
           <p className="text-sm text-slate-600 mt-1">{t('plan.subtitle')}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLoadDemo}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300/80 hover:bg-emerald-100 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
-        >
-          <Sparkles className="w-4 h-4 text-emerald-600" />
-          <span>{t('plan.demo_button')}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {/* Quick Template Button */}
+          <button
+            type="button"
+            onClick={handleLoadDemo}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
+          >
+            <BookmarkCheck className="w-4 h-4 text-emerald-700" />
+            <span>{t('templates.use_template')}</span>
+          </button>
+
+          {/* Voice Input Button */}
+          <button
+            type="button"
+            onClick={handleToggleVoiceInput}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs ${
+              isListening
+                ? 'bg-rose-600 text-white animate-pulse'
+                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+            title={t('simple_mode.voice_input')}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-emerald-700" />}
+            <span>{isListening ? t('simple_mode.listening') : t('simple_mode.voice_input')}</span>
+          </button>
+        </div>
       </div>
+
+      {voiceNotice && (
+        <div className="mb-4 p-3 bg-sky-50 border border-sky-200 text-sky-900 rounded-xl text-xs font-medium flex items-center gap-2">
+          <Mic className="w-4 h-4 text-sky-600 shrink-0" />
+          <span>{voiceNotice}</span>
+        </div>
+      )}
 
       {validationError && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3">
@@ -239,6 +334,27 @@ export default function PlanPage() {
           <p className="text-sm font-medium">{validationError}</p>
         </div>
       )}
+
+      {/* Speed Advisory Preview Box */}
+      <div className="mb-6 p-4 rounded-2xl bg-slate-900 text-white shadow-sm flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+            <Gauge className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+              {t('speed_advisory.title')}
+            </p>
+            <p className="text-sm font-bold text-emerald-300 mt-0.5">
+              {t('plan.speed_advice_preview', {
+                city_speed: 40,
+                highway_speed: 60,
+                unit_speed: t('units.kmh'),
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleOptimize} className="space-y-8">
         {/* SECTION 1: Produce and Vehicle */}
