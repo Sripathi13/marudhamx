@@ -161,9 +161,8 @@ export default function SettingsPage() {
               <input
                 id="fuel-price-input"
                 type="number"
-                step="0.5"
-                min="50"
-                max="250"
+                step="any"
+                min="1"
                 value={settings.fuel_price_per_litre}
                 onChange={(e) =>
                   setSettings({
@@ -182,8 +181,8 @@ export default function SettingsPage() {
               <input
                 id="default-cap-input"
                 type="number"
-                step="500"
-                min="500"
+                step="any"
+                min="1"
                 value={settings.default_truck_capacity_kg}
                 onChange={(e) =>
                   setSettings({

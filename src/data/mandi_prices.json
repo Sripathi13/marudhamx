@@ -1,0 +1,67 @@
+{
+  "price_date": "2026-10-08",
+  "data_source": "AGMARKNET Tamil Nadu Daily Price Bulletin (Demonstration Seed)",
+  "is_demonstration": true,
+  "prices": [
+    {
+      "market_id": "cbe_central",
+      "market_name": { "en": "Coimbatore Central Mandi", "ta": "கோயம்புத்தூர் மத்திய மண்டி", "hi": "कोयंबटूर केंद्रीय मंडी" },
+      "crop_prices": {
+        "tomato": 32.0,
+        "banana": 28.0,
+        "onion": 45.0,
+        "cabbage": 20.0,
+        "mango": 65.0,
+        "rice": 38.0
+      }
+    },
+    {
+      "market_id": "mettupalayam",
+      "market_name": { "en": "Mettupalayam Agro Mandi", "ta": "மேட்டுப்பாளையம் வேளாண் மண்டி", "hi": "मेट्टुपालयम कृषि मंडी" },
+      "crop_prices": {
+        "tomato": 37.5,
+        "banana": 30.0,
+        "onion": 48.0,
+        "cabbage": 22.0,
+        "mango": 70.0,
+        "rice": 39.0
+      }
+    },
+    {
+      "market_id": "tiruppur_market",
+      "market_name": { "en": "Tiruppur Thennampalayam Market", "ta": "திருப்பூர் தென்னம்பாளையம் சந்தை", "hi": "तिरुप्पुर तेन्नमपालयम मंडी" },
+      "crop_prices": {
+        "tomato": 34.0,
+        "banana": 29.0,
+        "onion": 46.5,
+        "cabbage": 21.0,
+        "mango": 67.0,
+        "rice": 38.5
+      }
+    },
+    {
+      "market_id": "pollachi_market",
+      "market_name": { "en": "Pollachi Regulated Market", "ta": "பொள்ளாச்சி ஒழுங்குமுறை விற்பனைக்கூடம்", "hi": "पोलाची विनियमित मंडी" },
+      "crop_prices": {
+        "tomato": 28.0,
+        "banana": 26.0,
+        "onion": 42.0,
+        "cabbage": 18.0,
+        "mango": 60.0,
+        "rice": 37.0
+      }
+    },
+    {
+      "market_id": "madurai_market",
+      "market_name": { "en": "Madurai Mattuthavani Market", "ta": "மதுரை மாட்டுத்தாவணி சந்தை", "hi": "मदुरै मट्टुथवानी मंडी" },
+      "crop_prices": {
+        "tomato": 39.0,
+        "banana": 32.0,
+        "onion": 51.0,
+        "cabbage": 23.0,
+        "mango": 72.0,
+        "rice": 40.0
+      }
+    }
+  ]
+}

@@ -6,27 +6,20 @@ import {
   Truck,
   MapPin,
   Clock,
-  Navigation,
+  ArrowRight,
+  TrendingDown,
   Info,
   ChevronDown,
   ChevronUp,
   ExternalLink,
   Settings as SettingsIcon,
   AlertTriangle,
-  RotateCcw,
-  Gauge,
-  Printer,
-  Share2,
-  ShieldCheck
+  RotateCcw
 } from 'lucide-react';
 import { api } from '../services/api';
-import { PlanResponse, RouteCandidate, RoadStretch } from '../types';
+import { PlanResponse, RouteCandidate } from '../types';
 import LeafletMap from '../components/LeafletMap';
-import SpeedAdvisoryTable from '../components/SpeedAdvisoryTable';
-import StretchCardModal from '../components/StretchCardModal';
-import LiveNavigationModal from '../components/LiveNavigationModal';
-import LoadSheetModal from '../components/LoadSheetModal';
-import ShareSummaryModal from '../components/ShareSummaryModal';
+import SpeedAdvisoryCard from '../components/SpeedAdvisoryCard';
 import {
   formatCurrency,
   formatDistance,
@@ -42,13 +35,8 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const [selectedPeriodIndex, setSelectedPeriodIndex] = useState<number | null>(null);
   const [showSteps, setShowSteps] = useState<boolean>(false);
-
-  // Modal states for AgriRoute v2 features
-  const [isNavigating, setIsNavigating] = useState<boolean>(false);
-  const [isViewingLoadSheet, setIsViewingLoadSheet] = useState<boolean>(false);
-  const [isSharingSummary, setIsSharingSummary] = useState<boolean>(false);
-  const [selectedStretch, setSelectedStretch] = useState<RoadStretch | null>(null);
 
   useEffect(() => {
     if (!shipmentId) return;
@@ -100,8 +88,10 @@ export default function ResultsPage() {
   const recommendedRoute: RouteCandidate =
     plan.routes.find((r) => r.id === plan.recommended_route_id) || plan.routes[0];
 
+  // External Google Maps directions URL
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${plan.origin.lat},${plan.origin.lng}&destination=${plan.destination.lat},${plan.destination.lng}&travelmode=driving`;
 
+  // Build truck summary string
   const truckDetails = plan.truck_breakdown.trucks
     .map(
       (tk) =>
@@ -113,18 +103,15 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* 1. Header & Action CTAs */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* 1. Header & Summary Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
               {cropTitle} • {formatNumber(plan.total_kg)} {t('units.kg')}
             </span>
             <span className="text-xs text-slate-500">
               {plan.origin.name} → {plan.destination.name}
-            </span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
-              {t(`confidence.${activeRoute.confidence || 'medium'}`)}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -133,48 +120,15 @@ export default function ResultsPage() {
           <p className="text-xs sm:text-sm text-slate-600 mt-0.5">{t('results.subtitle')}</p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Primary Turn-by-Turn Navigation Button */}
-          <button
-            onClick={() => setIsNavigating(true)}
-            className="px-5 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Navigation className="w-4 h-4 fill-current" />
-            <span>{t('results.btn_start_navigation')}</span>
-          </button>
-
-          {/* Load Sheet Print Button */}
-          <button
-            onClick={() => setIsViewingLoadSheet(true)}
-            className="px-3.5 py-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-semibold text-xs sm:text-sm shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            title={t('results.btn_print_load_sheet')}
-          >
-            <Printer className="w-4 h-4 text-emerald-700" />
-            <span className="hidden sm:inline">{t('results.btn_print_load_sheet')}</span>
-          </button>
-
-          {/* Share SMS / WhatsApp Button */}
-          <button
-            onClick={() => setIsSharingSummary(true)}
-            className="px-3.5 py-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-semibold text-xs sm:text-sm shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            title={t('results.btn_share_sms')}
-          >
-            <Share2 className="w-4 h-4 text-emerald-700" />
-            <span className="hidden sm:inline">{t('results.btn_share_sms')}</span>
-          </button>
-
-          {/* External Google Maps Button */}
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 shadow-2xs transition-colors cursor-pointer"
-            title={t('results.btn_open_google_maps')}
-          >
-            <ExternalLink className="w-4 h-4 text-emerald-700" />
-          </a>
-        </div>
+        <a
+          href={googleMapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs sm:text-sm shadow-2xs transition-colors self-start md:self-auto cursor-pointer"
+        >
+          <ExternalLink className="w-4 h-4 text-emerald-700" />
+          <span>{t('results.btn_open_google_maps')}</span>
+        </a>
       </div>
 
       {/* Truck Allocation Banner */}
@@ -205,17 +159,21 @@ export default function ResultsPage() {
 
       {/* 2. Map and Recommended Route Card Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left 7 Columns: Interactive Map with Road Stretches */}
+        {/* Left 7 Columns: Interactive Map */}
         <div className="lg:col-span-7 space-y-4">
           <LeafletMap
             origin={plan.origin}
             destination={plan.destination}
             routes={plan.routes}
             selectedRouteId={selectedRouteId}
-            onSelectRoute={(id) => setSelectedRouteId(id)}
-            onSelectStretch={(stretch) => setSelectedStretch(stretch)}
-            selectedStretchId={selectedStretch?.id}
-            heightClass="h-[480px]"
+            onSelectRoute={(id) => {
+              setSelectedRouteId(id);
+              setSelectedPeriodIndex(null);
+            }}
+            selectedPeriodIndex={selectedPeriodIndex}
+            onSelectPeriodIndex={setSelectedPeriodIndex}
+            cropCategory={plan.crop_id}
+            heightClass="h-[460px]"
           />
 
           {/* Route selector buttons for keyboard accessibility */}
@@ -371,16 +329,15 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* 3. Speed Advisory Table (AgriRoute v2 Centrepiece) */}
-      {activeRoute.stretches && activeRoute.stretches.length > 0 && (
-        <SpeedAdvisoryTable
-          stretches={activeRoute.stretches}
-          selectedStretchId={selectedStretch?.id}
-          onSelectStretch={(stretch) => setSelectedStretch(stretch)}
-        />
-      )}
+      {/* 2.5 Feasible Speed Advisory Timeline Across Whole Journey */}
+      <SpeedAdvisoryCard
+        route={activeRoute}
+        cropCategory={plan.crop_id}
+        selectedPeriodIndex={selectedPeriodIndex}
+        onSelectPeriodIndex={setSelectedPeriodIndex}
+      />
 
-      {/* 4. Comparison Table */}
+      {/* 3. Comparison Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-900">{t('results.comparison_title')}</h2>
@@ -398,7 +355,6 @@ export default function ResultsPage() {
                 <th className="py-3 px-4">{t('results.col_spoilage_loss')}</th>
                 <th className="py-3 px-4">{t('results.col_total_cost')}</th>
                 <th className="py-3 px-4">{t('results.col_score')}</th>
-                <th className="py-3 px-4">{t('results.col_confidence')}</th>
                 <th className="py-3 px-4 text-right">{t('results.col_action')}</th>
               </tr>
             </thead>
@@ -444,9 +400,6 @@ export default function ResultsPage() {
                         {r.score}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 text-xs">
-                      {t(`confidence.${r.confidence || 'medium'}`)}
-                    </td>
                     <td className="py-3.5 px-4 text-right">
                       <button
                         type="button"
@@ -471,7 +424,7 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* 5. Turn-by-Turn Navigation Steps (Expandable) */}
+      {/* 4. Turn-by-Turn Navigation Steps (Expandable) */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
         <button
           type="button"
@@ -512,7 +465,7 @@ export default function ResultsPage() {
         )}
       </div>
 
-      {/* 6. Model Assumptions Panel */}
+      {/* 5. Model Assumptions Panel */}
       <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900">
@@ -552,38 +505,6 @@ export default function ResultsPage() {
 
         <p className="text-xs text-slate-500 italic pt-1">{t('results.disclaimer')}</p>
       </div>
-
-      {/* Modals */}
-      {isNavigating && (
-        <LiveNavigationModal
-          plan={plan}
-          route={activeRoute}
-          onClose={() => setIsNavigating(false)}
-        />
-      )}
-
-      {isViewingLoadSheet && (
-        <LoadSheetModal
-          plan={plan}
-          route={activeRoute}
-          onClose={() => setIsViewingLoadSheet(false)}
-        />
-      )}
-
-      {isSharingSummary && (
-        <ShareSummaryModal
-          plan={plan}
-          route={activeRoute}
-          onClose={() => setIsSharingSummary(false)}
-        />
-      )}
-
-      {selectedStretch && (
-        <StretchCardModal
-          stretch={selectedStretch}
-          onClose={() => setSelectedStretch(null)}
-        />
-      )}
     </div>
   );
 }

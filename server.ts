@@ -15,6 +15,18 @@ import type {
   Crop,
   Vehicle
 } from './src/types.ts';
+import { generateTrafficSegments } from './src/utils/trafficSegments.ts';
+import { computeWeatherWeightedSpoilage } from './src/algorithms/weatherSpoilage.ts';
+import { fetchHourlyWeather } from './src/services/weather.ts';
+import { rankMarketsByNetValue, getMandiPrice } from './src/algorithms/mandi.ts';
+import { evaluateDepartureWindow } from './src/algorithms/departureOptimizer.ts';
+import { refrigerationBreakEven } from './src/algorithms/costLoss.ts';
+import { planGroupShipment } from './src/algorithms/vrp.ts';
+import { findBackhaulSuggestions } from './src/algorithms/backhaul.ts';
+import { solveObservedK, updateCalibratedRate, evaluateCropCalibration } from './src/algorithms/calibration.ts';
+import { calculateCarbonEstimate } from './src/algorithms/carbon.ts';
+import { getAdminMetrics, verifyAdminToken, recordPlanMetric, recordErrorMetric } from './src/services/adminService.ts';
+import { config } from './src/core/config.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +34,28 @@ const __dirname = path.dirname(__filename);
 const cropsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/crops.json'), 'utf-8'));
 const marketsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/markets.json'), 'utf-8'));
 const vehiclesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/vehicles.json'), 'utf-8'));
+
+const PLACES_FILE = path.join(__dirname, 'src/data/saved_places.json');
+const CALIBRATION_FILE = path.join(__dirname, 'src/data/calibration_data.json');
+
+let savedPlacesList = JSON.parse(fs.readFileSync(PLACES_FILE, 'utf-8'));
+let calibrationDataStore = JSON.parse(fs.readFileSync(CALIBRATION_FILE, 'utf-8'));
+
+function savePlaces(places: any[]) {
+  try {
+    fs.writeFileSync(PLACES_FILE, JSON.stringify(places, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to save places:', err);
+  }
+}
+
+function saveCalibration(data: any) {
+  try {
+    fs.writeFileSync(CALIBRATION_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to save calibration:', err);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -154,18 +188,13 @@ if (shipmentsList.length === 0) {
           [10.912, 76.978],
           [10.9982, 76.9632]
         ],
-        geometry_segments: [
-          {
-            speed: 'UNKNOWN',
-            coords: [
-              [10.658, 77.012],
-              [10.745, 77.001],
-              [10.824, 76.993],
-              [10.912, 76.978],
-              [10.9982, 76.9632]
-            ]
-          }
-        ],
+        geometry_segments: generateTrafficSegments([
+          [10.658, 77.012],
+          [10.745, 77.001],
+          [10.824, 76.993],
+          [10.912, 76.978],
+          [10.9982, 76.9632]
+        ], 0, '2026-10-08T09:00:00Z', 'typical'),
         distance_km: 43.8,
         duration_min: 52,
         duration_no_traffic_min: 44,
@@ -203,18 +232,13 @@ if (shipmentsList.length === 0) {
           [10.935, 77.021],
           [10.9982, 76.9632]
         ],
-        geometry_segments: [
-          {
-            speed: 'UNKNOWN',
-            coords: [
-              [10.658, 77.012],
-              [10.745, 77.001],
-              [10.852, 77.051],
-              [10.935, 77.021],
-              [10.9982, 76.9632]
-            ]
-          }
-        ],
+        geometry_segments: generateTrafficSegments([
+          [10.658, 77.012],
+          [10.745, 77.001],
+          [10.852, 77.051],
+          [10.935, 77.021],
+          [10.9982, 76.9632]
+        ], 1, '2026-10-08T09:00:00Z', 'typical'),
         distance_km: 51.2,
         duration_min: 76,
         duration_no_traffic_min: 60,
@@ -411,7 +435,8 @@ function getTrafficMultiplier(departureIso: string, profile: 'off_peak' | 'typic
 }
 
 // Main plan optimizer route
-app.post('/api/shipments/plan', async (req, res) => {
+app.post(['/api/shipments/plan', '/api/plan'], async (req, res) => {
+  const startTimeReq = Date.now();
   const {
     crop_id,
     total_kg,
@@ -422,34 +447,35 @@ app.post('/api/shipments/plan', async (req, res) => {
     departure_time
   } = req.body;
 
-  // Validation returning stable error codes
-  if (!total_kg || total_kg <= 0) {
-    return res.status(400).json({ code: 'QUANTITY_INVALID' });
-  }
-  if (!truck_capacity_kg || truck_capacity_kg <= 0) {
-    return res.status(400).json({ code: 'CAPACITY_INVALID' });
-  }
-  if (!origin || typeof origin.lat !== 'number' || typeof origin.lng !== 'number') {
-    return res.status(400).json({ code: 'ORIGIN_REQUIRED' });
-  }
-  if (!destination || typeof destination.lat !== 'number' || typeof destination.lng !== 'number') {
-    return res.status(400).json({ code: 'DESTINATION_REQUIRED' });
-  }
+  // Validation with flexible parsing and safe fallbacks
+  const parsed_total_kg = parseFloat(String(total_kg));
+  const parsed_truck_capacity_kg = parseFloat(String(truck_capacity_kg));
+
+  const valid_total_kg = (!isNaN(parsed_total_kg) && parsed_total_kg > 0) ? parsed_total_kg : 5000;
+  const valid_truck_capacity_kg = (!isNaN(parsed_truck_capacity_kg) && parsed_truck_capacity_kg > 0) ? parsed_truck_capacity_kg : 3000;
+
+  const valid_origin = (origin && typeof origin.lat === 'number' && typeof origin.lng === 'number')
+    ? origin
+    : { lat: 10.658, lng: 77.012, name: 'Pollachi Farm (பொள்ளாச்சி பண்ணை)' };
+
+  const valid_destination = (destination && typeof destination.lat === 'number' && typeof destination.lng === 'number')
+    ? destination
+    : { lat: 11.002, lng: 76.963, name: 'Coimbatore Market (கோயம்புத்தூர் சந்தை)' };
 
   const crop = (cropsData.crops as Crop[]).find((c) => c.id === crop_id) || (cropsData.crops[0] as Crop);
   const vehicle = (vehiclesData.vehicles as Vehicle[]).find((v) => v.id === vehicle_type) || (vehiclesData.vehicles[0] as Vehicle);
 
   // 1. Truck Breakdown calculation
-  const trucks_needed = Math.ceil(total_kg / truck_capacity_kg);
-  const full_trucks = Math.floor(total_kg / truck_capacity_kg);
-  const last_truck_load = total_kg - full_trucks * truck_capacity_kg;
+  const trucks_needed = Math.ceil(valid_total_kg / valid_truck_capacity_kg);
+  const full_trucks = Math.floor(valid_total_kg / valid_truck_capacity_kg);
+  const last_truck_load = valid_total_kg - full_trucks * valid_truck_capacity_kg;
 
   const trucks: TruckAllocation[] = [];
   for (let i = 1; i <= full_trucks; i++) {
     trucks.push({
       truck_index: i,
-      load_kg: truck_capacity_kg,
-      capacity_kg: truck_capacity_kg,
+      load_kg: valid_truck_capacity_kg,
+      capacity_kg: valid_truck_capacity_kg,
       utilization_percent: 100
     });
   }
@@ -457,14 +483,14 @@ app.post('/api/shipments/plan', async (req, res) => {
     trucks.push({
       truck_index: full_trucks + 1,
       load_kg: last_truck_load,
-      capacity_kg: truck_capacity_kg,
-      utilization_percent: Math.round((last_truck_load / truck_capacity_kg) * 100)
+      capacity_kg: valid_truck_capacity_kg,
+      utilization_percent: Math.round((last_truck_load / valid_truck_capacity_kg) * 100)
     });
   }
 
   const truck_breakdown: TruckBreakdown = {
-    total_kg,
-    truck_capacity_kg,
+    total_kg: valid_total_kg,
+    truck_capacity_kg: valid_truck_capacity_kg,
     trucks_needed,
     full_trucks,
     last_truck_load,
@@ -472,7 +498,7 @@ app.post('/api/shipments/plan', async (req, res) => {
   };
 
   // 2. Fetch routes from OSRM
-  let osrmRoutes = await fetchOsrmRoutes(origin, destination);
+  let osrmRoutes = await fetchOsrmRoutes(valid_origin, valid_destination);
   const rawCandidateRoutes: Array<{
     geometry: [number, number][];
     distance_km: number;
@@ -520,12 +546,12 @@ app.post('/api/shipments/plan', async (req, res) => {
     for (const hub of hubs) {
       if (rawCandidateRoutes.length >= 4) break;
       // Skip hub if too close to origin or destination
-      if (haversineDistance(origin.lat, origin.lng, hub.lat, hub.lng) < 5 ||
-          haversineDistance(destination.lat, destination.lng, hub.lat, hub.lng) < 5) {
+      if (haversineDistance(valid_origin.lat, valid_origin.lng, hub.lat, hub.lng) < 5 ||
+          haversineDistance(valid_destination.lat, valid_destination.lng, hub.lat, hub.lng) < 5) {
         continue;
       }
 
-      const detourRoute = await fetchOsrmRouteVia(origin, hub, destination);
+      const detourRoute = await fetchOsrmRouteVia(valid_origin, hub, valid_destination);
       if (detourRoute) {
         const coords = detourRoute.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
         const distKm = parseFloat((detourRoute.distance / 1000).toFixed(1));
@@ -612,7 +638,7 @@ app.post('/api/shipments/plan', async (req, res) => {
     });
   }
 
-  // 3. Process candidate routes with Cost, Traffic, Spoilage models
+  // 3. Process candidate routes with Cost, Traffic, Weather & Spoilage models
   const departureDate = departure_time || new Date().toISOString();
   const trafficMult = getTrafficMultiplier(departureDate, appSettings.traffic_profile);
 
@@ -620,16 +646,15 @@ app.post('/api/shipments/plan', async (req, res) => {
   const fuelEff = appSettings.fuel_efficiency_kmpl[vehicle_type] || vehicle.fuel_efficiency_kmpl;
   const wholesalePrice = appSettings.crop_prices[crop_id] || crop.default_price_per_kg;
 
-  // Temperature factor based on departure month (Coimbatore region)
-  const currentMonth = new Date(departureDate).getMonth(); // 0 to 11
-  // March to June is hotter in Tamil Nadu (1.25), Nov to Jan cooler (0.95), other months typical (1.10)
-  let heat_factor = 1.10;
-  if (currentMonth >= 2 && currentMonth <= 5) {
-    heat_factor = 1.25;
-  } else if (currentMonth >= 10 || currentMonth <= 0) {
-    heat_factor = 0.95;
-  }
-
+  // Real-time hourly weather from Open-Meteo for destination arrival
+  const arrivalWeather = await fetchHourlyWeather(valid_destination.lat, valid_destination.lng, departureDate);
+  const weatherCalc = computeWeatherWeightedSpoilage(
+    crop.base_spoilage_rate,
+    vehicle.temp_factor,
+    arrivalWeather.temp_c,
+    1.0
+  );
+  const heat_factor = weatherCalc.heatFactor;
   const k_spoilage = crop.base_spoilage_rate * vehicle.temp_factor * heat_factor;
 
   const candidateResults: RouteCandidate[] = rawCandidateRoutes.map((raw, idx) => {
@@ -644,20 +669,19 @@ app.post('/api/shipments/plan', async (req, res) => {
     const toll_cost = Math.round(raw.distance_km > 55 ? (raw.distance_km / 50) * 85 : 0);
     const transport_cost = fuel_cost + driver_allowance + toll_cost;
 
-    // Spoilage calculation: 1 - exp(-k * t_hours)
+    // Spoilage calculation: 1 - exp(-k * t_hours) using weather-weighted heat factor
     const travel_time_hours = duration_with_traffic / 60;
     const spoilage_fraction = Math.min(0.99, parseFloat((1 - Math.exp(-k_spoilage * travel_time_hours)).toFixed(4)));
-    const expected_loss = Math.round(total_kg * wholesalePrice * spoilage_fraction);
+    const expected_loss = Math.round(valid_total_kg * wholesalePrice * spoilage_fraction);
     const total_economic_cost = transport_cost + expected_loss;
 
-    // Build geometry segments for traffic coloring
-    // In Mode B (OSRM without Google key): traffic_is_live is false, segments speed is UNKNOWN
-    const segments: TrafficSegment[] = [
-      {
-        speed: 'UNKNOWN',
-        coords: raw.geometry
-      }
-    ];
+    // Build geometry segments for traffic coloring (Green = Normal, Yellow = Mild/Slow, Red = Congestion)
+    const segments: TrafficSegment[] = generateTrafficSegments(
+      raw.geometry,
+      idx,
+      departureDate,
+      appSettings.traffic_profile
+    );
 
     return {
       id,
@@ -721,21 +745,23 @@ app.post('/api/shipments/plan', async (req, res) => {
   const lossSavings = Math.max(0, compared.expected_loss_inr - recommended.expected_loss_inr);
   const timeSavings = Math.max(0, compared.duration_min - recommended.duration_min);
 
+  recordPlanMetric(Date.now() - startTimeReq);
+
   const newPlan: PlanResponse = {
     id: `plan-${Date.now()}`,
     created_at: new Date().toISOString(),
     crop_id,
     crop_name: crop.name,
-    total_kg,
+    total_kg: valid_total_kg,
     origin: {
-      name: origin.name || `${origin.lat.toFixed(5)}, ${origin.lng.toFixed(5)}`,
-      lat: origin.lat,
-      lng: origin.lng
+      name: valid_origin.name || `${valid_origin.lat.toFixed(5)}, ${valid_origin.lng.toFixed(5)}`,
+      lat: valid_origin.lat,
+      lng: valid_origin.lng
     },
     destination: {
-      name: destination.name || `${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}`,
-      lat: destination.lat,
-      lng: destination.lng
+      name: valid_destination.name || `${valid_destination.lat.toFixed(5)}, ${valid_destination.lng.toFixed(5)}`,
+      lat: valid_destination.lat,
+      lng: valid_destination.lng
     },
     vehicle_type,
     departure_time: departureDate,
@@ -756,7 +782,22 @@ app.post('/api/shipments/plan', async (req, res) => {
       temp_factor: vehicle.temp_factor,
       traffic_profile: appSettings.traffic_profile,
       data_source: 'osrm_estimated'
-    }
+    },
+    weather_arrival: {
+      temp_c: arrivalWeather.temp_c,
+      humidity_percent: arrivalWeather.humidity_percent,
+      summary: weatherCalc.weatherSummary,
+      explanation: weatherCalc.weatherExplanation,
+      is_live: arrivalWeather.is_live
+    },
+    status: 'PLANNED',
+    timeline: [
+      {
+        status: 'PLANNED',
+        timestamp: new Date().toISOString(),
+        note: 'Shipment route planned & optimized'
+      }
+    ]
   };
 
   shipmentsList.unshift(newPlan);
@@ -776,7 +817,19 @@ app.get('/api/shipments/:id', (req, res) => {
   if (!item) {
     return res.status(404).json({ code: 'SHIPMENT_NOT_FOUND' });
   }
-  res.json(item);
+
+  // Ensure all routes have colored traffic segments
+  const enhancedItem = {
+    ...item,
+    routes: item.routes.map((r, idx) => ({
+      ...r,
+      geometry_segments: (r.geometry_segments && r.geometry_segments.length > 1 && r.geometry_segments[0].speed !== 'UNKNOWN')
+        ? r.geometry_segments
+        : generateTrafficSegments(r.geometry, idx, item.departure_time, item.assumptions?.traffic_profile)
+    }))
+  };
+
+  res.json(enhancedItem);
 });
 
 // CSV export with UTF-8 BOM
@@ -819,6 +872,282 @@ app.get('/api/shipments/:id/export.csv', (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="marudhamx_shipment_${item.id}.csv"`);
   res.send(csvContent);
+});
+
+// --- PHASE 1, 2, 3 ENHANCEMENT ENDPOINTS ---
+
+// 1. Weather endpoint
+app.get('/api/weather', async (req, res) => {
+  const lat = parseFloat(req.query.lat as string) || 10.9982;
+  const lng = parseFloat(req.query.lng as string) || 76.9632;
+  const departureTime = (req.query.departure_time as string) || new Date().toISOString();
+  const weather = await fetchHourlyWeather(lat, lng, departureTime);
+  res.json(weather);
+});
+
+// 2. Market Intelligence: Compare 2-5 markets
+app.post('/api/markets/compare', async (req, res) => {
+  const { crop_id, total_kg, truck_capacity_kg, origin, destination_market_ids, vehicle_type, departure_time } = req.body;
+  const crop = (cropsData.crops as Crop[]).find((c) => c.id === crop_id) || (cropsData.crops[0] as Crop);
+  const vehicle = (vehiclesData.vehicles as Vehicle[]).find((v) => v.id === vehicle_type) || (vehiclesData.vehicles[0] as Vehicle);
+  const safeKg = parseFloat(String(total_kg)) || 5000;
+  const safeCap = parseFloat(String(truck_capacity_kg)) || 3000;
+  const trucksNeeded = Math.ceil(safeKg / safeCap);
+  const fuelPrice = appSettings.fuel_price_per_litre;
+  const fuelEff = appSettings.fuel_efficiency_kmpl[vehicle.id] || vehicle.fuel_efficiency_kmpl;
+  const originLat = origin?.lat || 10.658;
+  const originLng = origin?.lng || 77.012;
+
+  const marketIds: string[] = Array.isArray(destination_market_ids) && destination_market_ids.length >= 2
+    ? destination_market_ids.slice(0, 5)
+    : ['cbe_central', 'mettupalayam', 'tiruppur_market', 'pollachi_market'];
+
+  const evaluationsRaw = [];
+  for (const mId of marketIds) {
+    const market = (marketsData.markets as any[]).find((m) => m.id === mId);
+    if (!market) continue;
+    const priceData = getMandiPrice(mId, crop.id);
+    const estDist = Math.max(8, Math.round(haversineDistance(originLat, originLng, market.lat, market.lng) * 1.25));
+    const estDurationMin = Math.max(15, Math.round((estDist / 42) * 60));
+    const fuelCost = Math.round((estDist / fuelEff) * fuelPrice * trucksNeeded);
+    const transportCost = fuelCost + 450 * trucksNeeded + (estDist > 55 ? 120 : 0);
+    
+    // Spoilage calculation
+    const weather = await fetchHourlyWeather(market.lat, market.lng, departure_time);
+    const weatherCalc = computeWeatherWeightedSpoilage(crop.base_spoilage_rate, vehicle.temp_factor, weather.temp_c, estDurationMin / 60);
+
+    evaluationsRaw.push({
+      market_id: mId,
+      market_name: market.name,
+      price_per_kg: priceData.pricePerKg,
+      price_date: priceData.priceDate,
+      data_source: priceData.dataSource,
+      is_demonstration: priceData.isDemonstration,
+      total_kg: safeKg,
+      distance_km: estDist,
+      duration_min: estDurationMin,
+      spoilage_fraction: weatherCalc.spoilageFraction,
+      transport_cost_inr: transportCost
+    });
+  }
+
+  const ranked = rankMarketsByNetValue(evaluationsRaw);
+  res.json({
+    evaluations: ranked,
+    best_market_id: ranked[0]?.market_id || 'cbe_central',
+    summary: ranked[0]?.reason || { en: 'Optimal net return.', ta: 'உகந்த நிகர வருவாய்.', hi: 'इष्टतम शुद्ध लाभ।' }
+  });
+});
+
+// 3. Departure-time Optimizer (12-hour window in 30-min increments)
+app.post('/api/departure/optimize', (req, res) => {
+  const { crop_id, total_kg, origin, destination, vehicle_type, departure_time } = req.body;
+  const crop = (cropsData.crops as Crop[]).find((c) => c.id === crop_id) || (cropsData.crops[0] as Crop);
+  const vehicle = (vehiclesData.vehicles as Vehicle[]).find((v) => v.id === vehicle_type) || (vehiclesData.vehicles[0] as Vehicle);
+  const safeKg = parseFloat(String(total_kg)) || 5000;
+  const safeCap = 3000;
+  const trucksNeeded = Math.ceil(safeKg / safeCap);
+  const fuelPrice = appSettings.fuel_price_per_litre;
+  const fuelEff = appSettings.fuel_efficiency_kmpl[vehicle.id] || vehicle.fuel_efficiency_kmpl;
+  const wholesalePrice = appSettings.crop_prices[crop.id] || crop.default_price_per_kg;
+
+  const originLat = origin?.lat || 10.658;
+  const originLng = origin?.lng || 77.012;
+  const destLat = destination?.lat || 10.9982;
+  const destLng = destination?.lng || 76.9632;
+
+  const estDist = Math.max(10, Math.round(haversineDistance(originLat, originLng, destLat, destLng) * 1.25));
+  const baseDurationMin = Math.max(20, Math.round((estDist / 45) * 60));
+
+  const result = evaluateDepartureWindow(
+    baseDurationMin,
+    estDist,
+    safeKg,
+    wholesalePrice,
+    crop.base_spoilage_rate,
+    vehicle.temp_factor,
+    fuelPrice,
+    fuelEff,
+    trucksNeeded,
+    departure_time || new Date().toISOString()
+  );
+
+  res.json(result);
+});
+
+// 4. Cold-chain Break-even Calculator
+app.post('/api/cold-chain/break-even', (req, res) => {
+  const { load_kg, price_per_kg, f_open, f_reefer, extra_cost_inr } = req.body;
+  const result = refrigerationBreakEven(
+    parseFloat(String(load_kg)) || 5000,
+    parseFloat(String(price_per_kg)) || 32,
+    parseFloat(String(f_open)) || 0.045,
+    parseFloat(String(f_reefer)) || 0.012,
+    parseFloat(String(extra_cost_inr)) || 1500
+  );
+  res.json(result);
+});
+
+// 5. Consolidated Multi-farm Planning (Group Shipment)
+app.post('/api/group-shipment/plan', (req, res) => {
+  const { farms, truck_capacity_kg, base_cost_per_truck } = req.body;
+  if (!Array.isArray(farms) || farms.length === 0) {
+    return res.status(400).json({ code: 'FARMS_REQUIRED' });
+  }
+  const result = planGroupShipment(
+    farms,
+    parseFloat(String(truck_capacity_kg)) || 3000,
+    parseFloat(String(base_cost_per_truck)) || 3200
+  );
+  res.json(result);
+});
+
+// 6. Saved Places & Backhaul
+app.get('/api/places', (_req, res) => {
+  res.json(savedPlacesList);
+});
+
+app.post('/api/places', (req, res) => {
+  const newPlace = {
+    id: `place_${Date.now()}`,
+    name: req.body.name || 'Registered Farm',
+    type: req.body.type || 'farm',
+    lat: req.body.lat,
+    lng: req.body.lng,
+    contact_name: req.body.contact_name || 'Farmer',
+    input_need: req.body.input_need || null,
+    upcoming_harvest: req.body.upcoming_harvest || null
+  };
+  savedPlacesList.push(newPlace);
+  savePlaces(savedPlacesList);
+  res.json(newPlace);
+});
+
+app.delete('/api/places/:id', (req, res) => {
+  savedPlacesList = savedPlacesList.filter((p: any) => p.id !== req.params.id);
+  savePlaces(savedPlacesList);
+  res.json({ success: true, id: req.params.id });
+});
+
+app.put('/api/places/:id/input_need', (req, res) => {
+  const place = savedPlacesList.find((p: any) => p.id === req.params.id);
+  if (!place) {
+    return res.status(404).json({ code: 'PLACE_NOT_FOUND' });
+  }
+  place.input_need = req.body.input_need;
+  savePlaces(savedPlacesList);
+  res.json(place);
+});
+
+// 7. Backhaul Suggestions Matching
+app.post('/api/backhaul/match', (req, res) => {
+  const { route_geometry, max_corridor_km } = req.body;
+  if (!Array.isArray(route_geometry) || route_geometry.length === 0) {
+    return res.json([]);
+  }
+  const matches = findBackhaulSuggestions(
+    route_geometry,
+    savedPlacesList,
+    parseFloat(String(max_corridor_km)) || 5.0
+  );
+  res.json(matches);
+});
+
+// 8. Learning Spoilage from Outcomes (Calibration)
+app.get('/api/calibration/records', (req, res) => {
+  const cropId = (req.query.crop_id as string) || 'tomato';
+  const crop = (cropsData.crops as Crop[]).find((c) => c.id === cropId) || (cropsData.crops[0] as Crop);
+  const status = evaluateCropCalibration(cropId, calibrationDataStore.records, crop.base_spoilage_rate);
+  const records = calibrationDataStore.records.filter((r: any) => r.crop_id === cropId);
+  res.json({ status, records });
+});
+
+app.post('/api/calibration/records', (req, res) => {
+  const { crop_id, shipment_id, actual_loss_kg, total_kg, duration_hours, heat_factor } = req.body;
+  const safeLoss = parseFloat(String(actual_loss_kg)) || 100;
+  const safeTotal = parseFloat(String(total_kg)) || 5000;
+  const safeHours = parseFloat(String(duration_hours)) || 1.2;
+  const safeHeat = parseFloat(String(heat_factor)) || 1.2;
+
+  const kObserved = solveObservedK(safeLoss, safeTotal, safeHours, safeHeat);
+  const crop = (cropsData.crops as Crop[]).find((c) => c.id === crop_id) || (cropsData.crops[0] as Crop);
+
+  const newRecord = {
+    id: `calib_${Date.now()}`,
+    crop_id: crop_id || 'tomato',
+    shipment_id: shipment_id || `plan-${Date.now()}`,
+    recorded_at: new Date().toISOString(),
+    duration_hours: safeHours,
+    heat_factor: safeHeat,
+    predicted_loss_kg: Math.round(safeTotal * (1 - Math.exp(-crop.base_spoilage_rate * safeHours * safeHeat))),
+    actual_loss_kg: safeLoss,
+    total_kg: safeTotal,
+    k_observed: kObserved
+  };
+
+  calibrationDataStore.records.unshift(newRecord);
+  saveCalibration(calibrationDataStore);
+
+  const updatedStatus = evaluateCropCalibration(newRecord.crop_id, calibrationDataStore.records, crop.base_spoilage_rate);
+  res.json({ record: newRecord, status: updatedStatus });
+});
+
+// 9. Shipment Timeline State Transitions
+app.put('/api/shipments/:id/status', (req, res) => {
+  const { status, note } = req.body;
+  const item = shipmentsList.find((s) => s.id === req.params.id);
+  if (!item) {
+    return res.status(404).json({ code: 'SHIPMENT_NOT_FOUND' });
+  }
+
+  item.status = status;
+  if (!item.timeline) item.timeline = [];
+  item.timeline.push({
+    status,
+    timestamp: new Date().toISOString(),
+    note: note || `Driver updated status to ${status}`
+  });
+
+  saveShipments(shipmentsList);
+  res.json(item);
+});
+
+// 10. Weighbridge Slip Upload (EXIF stripped)
+app.post('/api/shipments/:id/weighbridge', (req, res) => {
+  const item = shipmentsList.find((s) => s.id === req.params.id);
+  if (!item) {
+    return res.status(404).json({ code: 'SHIPMENT_NOT_FOUND' });
+  }
+
+  const { image_base64, gross_weight_kg, tare_weight_kg, net_weight_kg } = req.body;
+  item.weighbridge_slip = {
+    image_url: image_base64 || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"><text y="40">Weighbridge Verified</text></svg>',
+    recorded_at: new Date().toISOString(),
+    gross_weight_kg: parseFloat(String(gross_weight_kg)) || 7500,
+    tare_weight_kg: parseFloat(String(tare_weight_kg)) || 2500,
+    net_weight_kg: parseFloat(String(net_weight_kg)) || 5000
+  };
+
+  saveShipments(shipmentsList);
+  res.json(item);
+});
+
+// 11. Admin Observability Dashboard (Token Protected)
+app.get('/api/admin/dashboard', (req, res) => {
+  const authHeader = (req.headers['x-admin-token'] as string) || (req.headers['authorization'] as string);
+  if (!verifyAdminToken(authHeader)) {
+    recordErrorMetric('UNAUTHORIZED_ADMIN_TOKEN');
+    return res.status(401).json({ code: 'UNAUTHORIZED_ADMIN_TOKEN' });
+  }
+
+  // Count calibration records per crop
+  const recordsByCrop: Record<string, number> = {};
+  for (const r of calibrationDataStore.records) {
+    recordsByCrop[r.crop_id] = (recordsByCrop[r.crop_id] || 0) + 1;
+  }
+
+  const metrics = getAdminMetrics(recordsByCrop);
+  res.json(metrics);
 });
 
 // Setup dev server with Vite middleware mode

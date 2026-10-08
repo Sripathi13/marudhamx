@@ -1,0 +1,54 @@
+[
+  {
+    "id": "place_farm_1",
+    "name": "Kinathukadavu Organic Farm",
+    "type": "farm",
+    "lat": 10.824,
+    "lng": 77.012,
+    "contact_name": "Murugan K",
+    "input_need": {
+      "item": "Organic Neem Cake & Compost (50 bags)",
+      "category": "fertilizer",
+      "weight_kg": 1500,
+      "needed_date": "2026-10-10"
+    },
+    "upcoming_harvest": {
+      "crop_id": "banana",
+      "quantity_kg": 3000,
+      "harvest_date": "2026-10-12"
+    }
+  },
+  {
+    "id": "place_farm_2",
+    "name": "Chettipalayam Green Fields",
+    "type": "farm",
+    "lat": 10.915,
+    "lng": 77.035,
+    "contact_name": "Ramasamy S",
+    "input_need": {
+      "item": "Plastic Crates & Tomato Boxes (200 units)",
+      "category": "packaging",
+      "weight_kg": 400,
+      "needed_date": "2026-10-09"
+    },
+    "upcoming_harvest": {
+      "crop_id": "tomato",
+      "quantity_kg": 4500,
+      "harvest_date": "2026-10-11"
+    }
+  },
+  {
+    "id": "place_farm_3",
+    "name": "Sulur Agro Plantation",
+    "type": "farm",
+    "lat": 11.026,
+    "lng": 77.126,
+    "contact_name": "Velusamy T",
+    "input_need": null,
+    "upcoming_harvest": {
+      "crop_id": "cabbage",
+      "quantity_kg": 2000,
+      "harvest_date": "2026-10-15"
+    }
+  }
+]

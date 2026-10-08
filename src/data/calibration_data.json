@@ -1,0 +1,53 @@
+{
+  "description": "Observed Post-Harvest Loss Feedback and Calibrated Rate History",
+  "records": [
+    {
+      "id": "calib_1",
+      "crop_id": "tomato",
+      "shipment_id": "plan-init-1",
+      "recorded_at": "2026-10-01T10:30:00.000Z",
+      "duration_hours": 1.2,
+      "heat_factor": 1.2,
+      "predicted_loss_kg": 95,
+      "actual_loss_kg": 110,
+      "total_kg": 5000,
+      "k_observed": 0.0162
+    },
+    {
+      "id": "calib_2",
+      "crop_id": "tomato",
+      "shipment_id": "plan-init-2",
+      "recorded_at": "2026-10-02T14:15:00.000Z",
+      "duration_hours": 1.5,
+      "heat_factor": 1.5,
+      "predicted_loss_kg": 140,
+      "actual_loss_kg": 165,
+      "total_kg": 5000,
+      "k_observed": 0.0171
+    },
+    {
+      "id": "calib_3",
+      "crop_id": "tomato",
+      "shipment_id": "plan-init-3",
+      "recorded_at": "2026-10-04T09:00:00.000Z",
+      "duration_hours": 1.1,
+      "heat_factor": 1.1,
+      "predicted_loss_kg": 85,
+      "actual_loss_kg": 98,
+      "total_kg": 5000,
+      "k_observed": 0.0165
+    },
+    {
+      "id": "calib_4",
+      "crop_id": "tomato",
+      "shipment_id": "plan-init-4",
+      "recorded_at": "2026-10-06T16:00:00.000Z",
+      "duration_hours": 1.8,
+      "heat_factor": 1.4,
+      "predicted_loss_kg": 175,
+      "actual_loss_kg": 195,
+      "total_kg": 5000,
+      "k_observed": 0.0168
+    }
+  ]
+}

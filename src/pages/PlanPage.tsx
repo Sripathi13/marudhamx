@@ -5,16 +5,13 @@ import {
   MapPin,
   Navigation,
   Truck,
+  Calendar,
   Sparkles,
   ArrowRight,
   AlertCircle,
   Clock,
-  Scale,
-  Mic,
-  MicOff,
-  Gauge,
-  BookmarkCheck,
-  Check
+  Layers,
+  Scale
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Crop, Market, Vehicle, PlanRequest } from '../types';
@@ -66,10 +63,6 @@ export default function PlanPage() {
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  // Voice Input State
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   // Fetch meta options
   useEffect(() => {
@@ -147,7 +140,7 @@ export default function PlanPage() {
     );
   };
 
-  // Demo / Template Scenario Loaders
+  // Demo scenario quick loader
   const handleLoadDemo = () => {
     setSelectedCropId('tomato');
     setTotalKg(5000);
@@ -163,110 +156,45 @@ export default function PlanPage() {
     setValidationError(null);
   };
 
-  // Voice Input Handler (SpeechRecognition)
-  const handleToggleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setVoiceNotice(t('simple_mode.voice_not_supported'));
-      setTimeout(() => setVoiceNotice(null), 3000);
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      const currentLang = i18n.language || 'ta';
-      recognition.lang = currentLang === 'ta' ? 'ta-IN' : currentLang === 'hi' ? 'hi-IN' : 'en-IN';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      setIsListening(true);
-      setVoiceNotice(t('simple_mode.listening'));
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript.toLowerCase();
-        setIsListening(false);
-        setVoiceNotice(transcript);
-        setTimeout(() => setVoiceNotice(null), 4000);
-
-        // Parse numbers
-        const numbersFound = transcript.match(/\d+/g);
-        if (numbersFound && numbersFound.length > 0) {
-          const qty = parseInt(numbersFound[0], 10);
-          if (qty > 0) setTotalKg(qty);
-        }
-
-        // Match crop
-        crops.forEach((c) => {
-          const enName = c.name.en.toLowerCase();
-          const taName = c.name.ta.toLowerCase();
-          const hiName = c.name.hi.toLowerCase();
-          if (transcript.includes(enName) || transcript.includes(taName) || transcript.includes(hiName)) {
-            setSelectedCropId(c.id);
-          }
-        });
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-        setVoiceNotice(null);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch {
-      setIsListening(false);
-    }
-  };
-
   // Submit Handler
   const handleOptimize = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
-    if (totalKg <= 0) {
-      setValidationError(t('errors.QUANTITY_INVALID'));
-      return;
-    }
-
-    if (effectiveCapacity <= 0) {
-      setValidationError(t('errors.CAPACITY_INVALID'));
-      return;
-    }
+    const safeTotalKg = totalKg > 0 ? totalKg : 5000;
+    const safeCapacity = effectiveCapacity > 0 ? effectiveCapacity : 3000;
 
     let destinationPayload: { id?: string; name: string; lat: number; lng: number };
     if (customDestination) {
       destinationPayload = customDestination;
     } else {
-      const market = markets.find((m) => m.id === selectedMarketId);
-      if (!market) {
-        setValidationError(t('errors.DESTINATION_REQUIRED'));
-        return;
-      }
+      const market = markets.find((m) => m.id === selectedMarketId) || markets[0] || {
+        id: 'cbe_central',
+        name: { en: 'Coimbatore Market', ta: 'கோயம்புத்தூர் சந்தை', hi: 'कोयंबटूर मंडी' },
+        lat: 11.002,
+        lng: 76.963
+      };
       const langKey = (i18n.language as 'en' | 'ta' | 'hi') || 'ta';
       destinationPayload = {
         id: market.id,
-        name: market.name[langKey] || market.name.ta,
+        name: (market.name as any)[langKey] || (market.name as any).ta || 'Market',
         lat: market.lat,
         lng: market.lng,
       };
     }
 
     const payload: PlanRequest = {
-      crop_id: selectedCropId,
-      total_kg: totalKg,
-      truck_capacity_kg: effectiveCapacity,
-      origin,
+      crop_id: selectedCropId || 'tomato',
+      total_kg: safeTotalKg,
+      truck_capacity_kg: safeCapacity,
+      origin: origin || {
+        lat: 10.658,
+        lng: 77.012,
+        name: 'Pollachi Farm (பொள்ளாச்சி பண்ணை)',
+      },
       destination: destinationPayload,
-      vehicle_type: selectedVehicleType,
-      departure_time: new Date(departureTime).toISOString(),
+      vehicle_type: selectedVehicleType || 'refrigerated_truck',
+      departure_time: departureTime ? new Date(departureTime).toISOString() : new Date().toISOString(),
     };
 
     setIsSubmitting(true);
@@ -293,40 +221,15 @@ export default function PlanPage() {
           <p className="text-sm text-slate-600 mt-1">{t('plan.subtitle')}</p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {/* Quick Template Button */}
-          <button
-            type="button"
-            onClick={handleLoadDemo}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
-          >
-            <BookmarkCheck className="w-4 h-4 text-emerald-700" />
-            <span>{t('templates.use_template')}</span>
-          </button>
-
-          {/* Voice Input Button */}
-          <button
-            type="button"
-            onClick={handleToggleVoiceInput}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-2xs ${
-              isListening
-                ? 'bg-rose-600 text-white animate-pulse'
-                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-            }`}
-            title={t('simple_mode.voice_input')}
-          >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-emerald-700" />}
-            <span>{isListening ? t('simple_mode.listening') : t('simple_mode.voice_input')}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleLoadDemo}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300/80 hover:bg-emerald-100 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
+        >
+          <Sparkles className="w-4 h-4 text-emerald-600" />
+          <span>{t('plan.demo_button')}</span>
+        </button>
       </div>
-
-      {voiceNotice && (
-        <div className="mb-4 p-3 bg-sky-50 border border-sky-200 text-sky-900 rounded-xl text-xs font-medium flex items-center gap-2">
-          <Mic className="w-4 h-4 text-sky-600 shrink-0" />
-          <span>{voiceNotice}</span>
-        </div>
-      )}
 
       {validationError && (
         <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3">
@@ -335,28 +238,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Speed Advisory Preview Box */}
-      <div className="mb-6 p-4 rounded-2xl bg-slate-900 text-white shadow-sm flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
-            <Gauge className="w-5 h-5 text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              {t('speed_advisory.title')}
-            </p>
-            <p className="text-sm font-bold text-emerald-300 mt-0.5">
-              {t('plan.speed_advice_preview', {
-                city_speed: 40,
-                highway_speed: 60,
-                unit_speed: t('units.kmh'),
-              })}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleOptimize} className="space-y-8">
+      <form onSubmit={handleOptimize} noValidate className="space-y-8">
         {/* SECTION 1: Produce and Vehicle */}
         <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-2xs">
           <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-slate-100">
@@ -392,13 +274,15 @@ export default function PlanPage() {
               <input
                 id="quantity-input"
                 type="number"
-                min="1"
-                step="50"
+                min="0.1"
+                step="any"
                 value={totalKg || ''}
-                onChange={(e) => setTotalKg(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setTotalKg(isNaN(val) ? 0 : val);
+                }}
                 placeholder={t('plan.quantity_placeholder')}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
               />
             </div>
 
@@ -431,9 +315,13 @@ export default function PlanPage() {
               {selectedCapacityPreset === 'custom' && (
                 <input
                   type="number"
-                  min="100"
+                  min="0.1"
+                  step="any"
                   value={customCapacity || ''}
-                  onChange={(e) => setCustomCapacity(parseInt(e.target.value, 10) || 0)}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setCustomCapacity(isNaN(val) ? 0 : val);
+                  }}
                   placeholder={t('plan.custom_capacity_placeholder')}
                   className="mt-2 w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />

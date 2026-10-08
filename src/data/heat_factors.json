@@ -1,0 +1,10 @@
+{
+  "description": "Temperature to Heat Factor Piecewise Lookup Table (Demonstration Assumption)",
+  "data_source": "Tamil Nadu Agricultural University Post-Harvest Guidelines (Demonstration Assumption)",
+  "thresholds": [
+    { "max_temp_c": 25.0, "heat_factor": 1.0, "label": "Cool / Mild" },
+    { "min_temp_c": 25.0, "max_temp_c": 30.0, "heat_factor": 1.2, "label": "Moderate Ambient" },
+    { "min_temp_c": 30.0, "max_temp_c": 35.0, "heat_factor": 1.5, "label": "Warm / Elevated" },
+    { "min_temp_c": 35.0, "heat_factor": 1.8, "label": "High Heat Stress" }
+  ]
+}
